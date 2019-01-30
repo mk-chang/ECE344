@@ -10,21 +10,83 @@ struct wait_queue {
 };
 
 /* This is the thread control block */
-struct thread {
-	/* ... Fill this in ... */
-};
+enum{
+	READY=0; 
+	RUNNING=1;
+	EXIT=2;	
+}
 
+enum{
+	ASSIGNED =1;
+	AVAILABLE = 0;
+}
+
+struct thread {
+	Tid threadID;
+	int state;
+	ucontext_t context;
+};
+typedef thread thread;
+
+struct queueNode{
+	struct thread *threadBlock;
+	struct queueNode *next;
+}
+typedef queueNode queueNode;
+
+struct threadQueue{
+	queueNode *head;
+}
+typedef threadQueue threadQueue;
+
+//Global Variables
+int tidArray[THREAD_MAX_THREADS]; 
+threadQueue *readyQueue;
+threadQueue *exitQueue;
+thread *runningThread;
+
+//Helper Functions
+int find(Tid TID,int q)
+{
+	//if q=READY,find in readyQueue
+	//if q=EXIT, find in exitQueue
+	  
+	return 1;
+
+	//if unsuccesfull
+	return 0;
+}
+
+int find_and_extract(Tid TID,thread *extraction)
+{
+
+}
+
+
+//Cooperative Threads API
 void
 thread_init(void)
 {
 	/* your optional code here */
+	readyQueue = (threadQueue *)malloc(sizeof(threadQueue));
+	exitQueue = (threadQueue *)malloc(sizeof(threadQueue));
+	for(int i=0;i<THREAD_MAX_THREADS;i++)
+		tidArray[i]=0;
+	
+	//set kernel thread
+	thread *kernelThread = (thread*)malloc(sizeof(thread));
+	kernelThread->threadID = 0;
+	kernelThread->state = RUNNING;
+       	tidArray[0] = ASSIGNED;	
+	
+	//initialize running thread
+	runningThread = kernelThread;	
 }
 
 Tid
 thread_id()
 {
-	TBD();
-	return THREAD_INVALID;
+	return runningThread->threadID;
 }
 
 Tid
@@ -37,8 +99,15 @@ thread_create(void (*fn) (void *), void *parg)
 Tid
 thread_yield(Tid want_tid)
 {
-	TBD();
-	return THREAD_FAILED;
+	//Find wanted_tid in readyQueue 
+	if(find(wanted_tid)=1){
+		thread *
+		thread *replacementThread = find_and_extract();
+	{
+
+	//If wanted_tid not in readyQueue
+	else
+		return THREAD_FAILED;
 }
 
 Tid
