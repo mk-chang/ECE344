@@ -11,14 +11,14 @@ struct wait_queue {
 
 /* This is the thread control block */
 enum{
-	READY=0; 
-	RUNNING=1;
-	EXIT=2;	
+	READY=0,
+	RUNNING=1,
+	EXIT=2,	
 }
 
 enum{
-	ASSIGNED =1;
-	AVAILABLE = 0;
+	ASSIGNED =1,
+	AVAILABLE = 0,
 }
 
 struct thread {
@@ -29,7 +29,7 @@ struct thread {
 typedef thread thread;
 
 struct queueNode{
-	struct thread *threadBlock;
+	struct thread *threadData;
 	struct queueNode *next;
 }
 typedef queueNode queueNode;
@@ -46,7 +46,9 @@ threadQueue *exitQueue;
 thread *runningThread;
 
 //Helper Functions
-int find(Tid TID,int q)
+//
+//Find thread with Tid = TID in the given queue
+int find(int q,Tid TID)
 {
 	//if q=READY,find in readyQueue
 	//if q=EXIT, find in exitQueue
@@ -57,11 +59,26 @@ int find(Tid TID,int q)
 	return 0;
 }
 
-int find_and_extract(Tid TID,thread *extraction)
+//Find thread with Tid = TID and extract the data from the node
+int extract(Tid TID,thread *extraction)
 {
 
 }
 
+//Extracting the first node in the queue
+int extractFirst(int q, thread *extraction)
+{
+
+}
+
+void appendQueue(int q, thread* append)
+{
+
+}
+
+void clearQueue(int q){
+	
+}
 
 //Cooperative Threads API
 void
@@ -71,7 +88,7 @@ thread_init(void)
 	readyQueue = (threadQueue *)malloc(sizeof(threadQueue));
 	exitQueue = (threadQueue *)malloc(sizeof(threadQueue));
 	for(int i=0;i<THREAD_MAX_THREADS;i++)
-		tidArray[i]=0;
+		tidArray[i]=AVAILABLE;
 	
 	//set kernel thread
 	thread *kernelThread = (thread*)malloc(sizeof(thread));
@@ -99,29 +116,88 @@ thread_create(void (*fn) (void *), void *parg)
 Tid
 thread_yield(Tid want_tid)
 {
-	//Find wanted_tid in readyQueue 
-	if(find(wanted_tid)=1){
-		thread *
-		thread *replacementThread = find_and_extract();
-	{
+	//Checking if want_tid refers to a valid thread
+	if(want_tid < -2 || want_tid > THREAD_MAX_THREADS)
+		return THREAD_INVALID;
+	else{
+		if(want_tid == THREAD_ANY && readyQueue->head == NULL)
+			return THREAD_NONE;
+		if(want_tid >= 0 && tidArray[want_tid] = AVAILABLE)
+			return THREAD_INVALID;
+	}	
 
+	//Check's passed, try and replace
+	thread replacementThread; //might need to be pointer
+
+	//If TID value is THREAD_ANY(-1), yield to first thread in readyQueue
+	if(want_tid == THREAD_ANY){
+		
+		//store u_context of current thread
+		getcontext(&runningThread->context);
+		//add replaced thread to end of queue
+		appendQueue(runningThread);
+		//extract and update runningThread, setcontext of runningThread to new context
+		extractFirst(READY, runningThread);
+		setcontext(&runningThread->context);
+		return runningThread->threadID;
+	}
+
+	else if(want_tid == THREAD_SELF){
+		return runningThread->threadID;
+	}
+
+	else if(want_tid >= 0){
+	//Find wanted_tid in readyQueue 
+		if(find(READY,wanted_tid) == 1){
+			getcontext(&runningThread->context);
+			appendQueue(READY,runningThread);
+			extract(Tid, &replacementThread);
+			setcontext(&runningThread->context);
+			
+			return replacementThread->threadID;	
+		}
+	}
 	//If wanted_tid not in readyQueue
 	else
-		return THREAD_FAILED;
+		return THREAD_INVALID;
+
+	//clear exitqueue
+	clearQueue(EXIT);
 }
 
 Tid
 thread_exit()
 {
-	TBD();
-	return THREAD_FAILED;
+	//Check if last thread
+	if (readyQueue->head == NULL)
+		return THREAD_NONE;
+	else{
+		//move current thread to exitQueue
+		appendQueue(EXIT, runningThread);
+		//yield to any thread
+		thread_yield(THREAD_ANY);
+	}
 }
 
 Tid
 thread_kill(Tid tid)
 {
-	TBD();
-	return THREAD_FAILED;
+	//Checking if want_tid refers to a valid thread
+	if(want_tid < -2 || want_tid > THREAD_MAX_THREADS)
+		return THREAD_INVALID;
+	else{
+		if(want_tid > 0 && tidArray[want_tid] = AVAILABLE)
+			return THREAD_INVALID;
+	}
+	
+	//Check passed
+	if(find(READY,wanted_tid) == 1){
+		thread replacementThread; //might need to be pointer
+
+		appendQueue(runningThread);
+		extract(Tid, &replacementThread);
+		return repacementThread->threadID
+	}	
 }
 
 /*******************************************************************
