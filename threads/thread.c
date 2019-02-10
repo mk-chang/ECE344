@@ -83,11 +83,52 @@ int extract(int q, Tid TID, thread *extraction)
 {
 	if(q == READY){
 		queueNode *extractNode = readyQueue->head;
-		while(extractNode != NULL){
-			return 1;
+		queueNode *prevNode = NULL;
+		while(extractNode != NULL && extractNode->threadData->threadID != TID){
+			prevNode = extractNode;
+			extractNode = extractNode->next;
 		}
+		if(extractNode == NULL){
+			return THREAD_FAILED;
+		}
+		else if(extractNode == readyQueue->head){
+			extraction = extractNode->threadData;
+			readyQueue->head = extractNode->next; 
+		}
+		else if(extractNode->next == NULL){
+			extraction = extractNode->threadData;
+			prevNode->next = NULL;
+		}
+		else{
+			extraction = extractNode->threadData;
+			prevNode->next = extractNode->next;
+		}
+		free(extractNode);
+		return 1;
 	}
 	else if(q == EXIT){
+		queueNode *extractNode = exitQueue->head;
+		queueNode *prevNode = NULL;
+		while(extractNode != NULL && extractNode->threadData->threadID != TID){
+			prevNode = extractNode;
+			extractNode = extractNode->next;
+		}
+		if(extractNode == NULL){
+			return THREAD_FAILED;
+		}
+		else if(extractNode == exitQueue->head){
+			extraction = extractNode->threadData;
+			exitQueue->head = extractNode->next; 
+		}
+		else if(extractNode->next == NULL){
+			extraction = extractNode->threadData;
+			prevNode->next = NULL;
+		}
+		else{
+			extraction = extractNode->threadData;
+			prevNode->next = extractNode->next;
+		}
+		free(extractNode);
 		return 1;
 	}
 	return 0;
@@ -96,6 +137,20 @@ int extract(int q, Tid TID, thread *extraction)
 //Extracting the first node in the queue
 int extractFirst(int q, thread *extraction)
 {
+	if(q == READY && readyQueue->head != NULL){	
+		queueNode *extractNode = readyQueue->head;
+	       	extraction = extractNode->threadData;
+		readyQueue->head = extractNode->next;
+		free(extractNode);
+		return 1;
+	}
+	else if(q == EXIT && exitQueue->head != NULL){
+		queueNode *extractNode = exitQueue->head;
+		extraction = extractNode->threadData;
+		exitQueue->head = extractNode->next;
+		free(extractNode);
+		return 1;
+	}	
 	return 0;
 }
 
