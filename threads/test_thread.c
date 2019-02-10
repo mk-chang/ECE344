@@ -111,6 +111,7 @@ test_basic()
 		assert(ii <= (NTHREADS + 1));
 		ret = thread_yield(THREAD_ANY);
 		ii++;
+		printf("In ii,%d, yielding to ret = %d\n",ii,ret); //added
 	} while (ret != THREAD_NONE);
 
 	/*

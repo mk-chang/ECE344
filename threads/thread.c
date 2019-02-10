@@ -313,13 +313,15 @@ thread_create(void (*fn) (void *), void *parg)
 
 Tid
 thread_yield(Tid want_tid)
-{
+{	
 	//Checking if want_tid refers to a valid thread
 	if(want_tid < -2 || want_tid > THREAD_MAX_THREADS)
 		return THREAD_INVALID;
 	else{
-		if(want_tid == THREAD_ANY && readyQueue->head == NULL)
+		if(want_tid == THREAD_ANY && readyQueue->head == NULL){
+			clearQueue(EXIT);
 			return THREAD_NONE;
+		}
 		if(want_tid >= 0 && tidArray[want_tid] == AVAILABLE)
 			return THREAD_INVALID;
 	}	
