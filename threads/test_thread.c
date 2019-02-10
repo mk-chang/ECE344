@@ -38,6 +38,7 @@ test_basic()
 	
 	/* Initial thread yields */
 	ret = thread_yield(THREAD_SELF);
+	printf("thread_yield returns: %d.\n", ret); //added
 	assert(thread_ret_ok(ret));
 	printf("initial thread returns from yield(SELF)\n");
 	/* See thread.h -- initial thread must be Tid 0 */
@@ -59,6 +60,7 @@ test_basic()
 	allocated_space = minfo.uordblks;
 	/* create a thread */
 	ret = thread_create((void (*)(void *))hello, "hello from first thread");
+	printf("Created hello thread, with threadID: %d.\n", ret); //added
 	minfo = mallinfo();
 	if (minfo.uordblks <= allocated_space) {
 		printf("it appears that the thread stack is not being"
@@ -67,7 +69,9 @@ test_basic()
 	}
 	printf("my id is %d\n", thread_id());
 	assert(thread_ret_ok(ret));
+	printf("assert thread_ret_ok passed, going to yield to %d.\n", ret); //added
 	ret2 = thread_yield(ret);
+	printf("ret2 = %d\n",ret2); //added
 	assert(ret2 == ret);
 
 	/* store address of some variable on stack */
@@ -247,8 +251,10 @@ hello(char *msg)
 	ret = thread_yield(THREAD_SELF);
 	assert(thread_ret_ok(ret));
 	printf("thread returns from second yield\n");
+	//printf("In hello thread, going into while loop.\n"); //added
 
 	while (1) {
+		//printf("In hello thread, yielding to any thread.\n"); //added
 		thread_yield(THREAD_ANY);
 	}
 
