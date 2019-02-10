@@ -101,12 +101,44 @@ int extractFirst(int q, thread *extraction)
 
 void appendQueue(int q, thread* append)
 {
-	return;
+	//Initialize new node;
+	queueNode *newNode;
+	newNode = (queueNode*)malloc(sizeof(queueNode));
+	newNode->next=NULL;
+	newNode->threadData = append;
+	
+	//Add to end of queue
+	queueNode *current;
+	if(q == READY)
+		current = readyQueue->head;
+	else if(q == EXIT)
+		current = exitQueue->head;
+
+	while(current->next != NULL){
+		current = current->next;
+	}
+	current->next = newNode;
 }
 
 void clearQueue(int q){
-	return;
+	if(q==READY){
+		queueNode *destroyNode = readyQueue->head;
+		while(readyQueue->head!=NULL){
+			readyQueue->head = destroyNode->next;
+			free(destroyNode);
+			queueNode *destroyNode = readyQueue->head;
+		}
+	}
+	else if(q==EXIT){
+		queueNode *destroyNode = exitQueue->head;
+		while(readyQueue->head!=NULL){
+			exitQueue->head = destroyNode->next;
+			free(destroyNode);
+			queueNode *destroyNode = readyQueue->head;
+		}
+	}
 }
+
 
 //Cooperative Threads API
 void
