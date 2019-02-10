@@ -14,30 +14,31 @@ enum{
 	READY=0,
 	RUNNING=1,
 	EXIT=2,	
-}
+};
 
 enum{
 	ASSIGNED =1,
 	AVAILABLE = 0,
-}
+};
 
 struct thread {
 	Tid threadID;
 	int state;
 	ucontext_t context;
+	void *stackAddress;
 };
-typedef thread thread;
+typedef struct thread thread;
 
 struct queueNode{
 	struct thread *threadData;
 	struct queueNode *next;
-}
-typedef queueNode queueNode;
+};
+typedef struct queueNode queueNode;
 
 struct threadQueue{
 	queueNode *head;
-}
-typedef threadQueue threadQueue;
+};
+typedef struct threadQueue threadQueue;
 
 //Global Variables
 int tidArray[THREAD_MAX_THREADS]; 
@@ -52,17 +53,41 @@ int find(int q,Tid TID)
 {
 	//if q=READY,find in readyQueue
 	//if q=EXIT, find in exitQueue
-	  
-	return 1;
-
-	//if unsuccesfull
-	return 0;
+	
+      	if(q = READY){
+		queueNode *searchNode = readyQueue->head;
+		while(searchNode != NULL){
+			if(searchNode->threadData->threadID == TID)
+				return 1;
+			searchNode = searchNode->next;
+		}
+		//Unsuccessful, thread with given Tid not found in queue
+		return 0;
+	}
+	else if(q = EXIT){
+		queueNode *searchNode = exitQueue->head;
+		while(searchNode != NULL){
+			if(searchNode->threadData->threadID == TID)
+				return 1;
+			searchNode = searchNode->next;	
+		}
+		//Unsuccessful, thread with given Tid not found in queue
+		return 0;
+	}
 }
 
 //Find thread with Tid = TID and extract the data from the node
-int extract(Tid TID,thread *extraction)
+int extract(int q, Tid TID, thread *extraction)
 {
+	if(q = READY){
+		queueNode *extractNode = readyQueue->head;
+		while(extractNode != NULL){
+			
+		}
+	}
+	else if(q = EXIT){
 
+	}
 }
 
 //Extracting the first node in the queue
@@ -106,11 +131,59 @@ thread_id()
 	return runningThread->threadID;
 }
 
+void thread_stub(void (*thread_main)(void *), void *arg)
+{
+	Tid ret;
+	thread_main(arg);
+	ret = thread_exit();
+	//we should only get here if we are the last thread
+	assert(ret == THREAD_NONE);
+	//all threads are done, so process should exit
+	exit(0);
+}
+
 Tid
 thread_create(void (*fn) (void *), void *parg)
 {
-	TBD();
 	return THREAD_FAILED;
+	thread *temp = (thread *)malloc(sizeof(thread));
+	if(temp == NULL){
+		return THREAD_NOMEMORY;
+	}
+
+	//Have memory for thread, find available thread ID	
+	for(int i=1;tidArray[i] == 1;i++){
+		if(i==THREAD_MAX_THREADS)
+			return THREAD_NOMORE;
+	}
+	temp->thread_id = i;
+	tidArray[i]=1;
+
+	//Initialize temp->context, then update temp context
+	getcontext(&temp->context);
+	
+	temp->context.uc_mcontext.gregs[REG_RIP] = (unsigned long) &thread_stub;
+	temp->context.uc_mcontext.gregs[REG_RDI} = (unsigned long) fn;
+	temp->context.uc_mcontext.gregs[REG_RSI] = (unsigned long) parg;
+	
+	temp->state = READY;
+
+	void *stackPointer;
+	stackPointer = malloc(THREAD_MIN_STACK);
+	if(stackPointer == NULL){
+		free(temp);
+		return THREAD_NOMEMORY;
+	}
+	
+	temp->context.uc_stack.ss_sp = stackPointer;
+	temp->context.uc_mcontext.gregs[REG_RSP] = (unsigned long)stackPointer + THREAD_MIN_STACK - 8;
+	temp->context.uc_stack.ss_size = THREAD_MIN_STACK - 8;
+	temp->stackAddress = stackPointer;
+	
+	queueNode *newThread = (queueNode *)malloc(sizeof(queueNode));
+	queueNode->threadData = temp;
+	appendQueue(READY, newThread);
+	return temp->threadID;
 }
 
 Tid
@@ -151,7 +224,7 @@ thread_yield(Tid want_tid)
 		if(find(READY,wanted_tid) == 1){
 			getcontext(&runningThread->context);
 			appendQueue(READY,runningThread);
-			extract(Tid, &replacementThread);
+			extract(READY, Tid, &replacementThread);
 			setcontext(&runningThread->context);
 			
 			return replacementThread->threadID;	
