@@ -31,6 +31,9 @@ thread_ret_ok(Tid ret)
  * Lab 2: Implement the following four functions *
  *************************************************/
 
+//added
+void printQueue(int);
+
 /* perform any initialization needed by your threading system */
 void thread_init(void);
 

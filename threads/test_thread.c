@@ -32,7 +32,7 @@ test_basic()
 	int allocated_space;
 	
 	printf("starting basic test\n");
-	struct mallinfo minfo_start = mallinfo();
+	//struct mallinfo minfo_start = mallinfo();
 	
 	assert(thread_id() == 0);
 	
@@ -77,6 +77,7 @@ test_basic()
 	/* store address of some variable on stack */
 	stack_array[thread_id()] = (long *)&ret;
 
+	printf("Creating more threads.\n");
 	int ii, jj;
 	/* we will be using THREAD_MAX_THREADS threads later */
 	Tid child[THREAD_MAX_THREADS];
@@ -90,6 +91,7 @@ test_basic()
 	}
 	printf("my id is %d\n", thread_id());
 	for (ii = 0; ii < NTHREADS; ii++) {
+		//printf("Attempting to yield to thread %d.\n", child[ii]); //added
 		ret = thread_yield(child[ii]);
 		assert(ret == child[ii]);
 	}
@@ -100,8 +102,10 @@ test_basic()
 	assert(ret == ret2);
 	for (ii = 0; ii < NTHREADS; ii++) {
 		ret = thread_kill(child[ii]);
+		//printf("Killed thread %d.\n", ret); //added
 		assert(ret == child[ii]);
 	}
+	//printQueue(2); //added
 
 	/* we destroyed other threads. yield so that these threads get to run
 	 * and exit. */
@@ -111,15 +115,16 @@ test_basic()
 		assert(ii <= (NTHREADS + 1));
 		ret = thread_yield(THREAD_ANY);
 		ii++;
-		printf("In ii,%d, yielding to ret = %d\n",ii,ret); //added
+		//printf("In ii,%d, yielding to ret = %d\n",ii,ret); //added
 	} while (ret != THREAD_NONE);
-
+	
 	/*
 	 * create maxthreads-1 threads
 	 */
 	printf("creating  %d threads\n", THREAD_MAX_THREADS - 1);
 	for (ii = 0; ii < THREAD_MAX_THREADS - 1; ii++) {
 		ret = thread_create((void (*)(void *))fact, (void *)10);
+		//printQueue(0);
 		assert(thread_ret_ok(ret));
 	}
 	/*
@@ -132,6 +137,9 @@ test_basic()
 	 */
 	printf("running   %d threads\n", THREAD_MAX_THREADS - 1);
 	for (ii = 0; ii < THREAD_MAX_THREADS; ii++) {
+		//printQueue(2); //added
+		//printQueue(0); //added
+		//printf("Attempting to yield to %d.\n", ii); //added
 		ret = thread_yield(ii);
 		if (ii == 0) {
 			/* 
@@ -142,6 +150,7 @@ test_basic()
 			assert(thread_ret_ok(ret));
 		}
 	}
+	//printQueue(2); //added
 
 	/* check that the thread stacks are sufficiently far apart */
 	for (ii = 0; ii < THREAD_MAX_THREADS; ii++) {
@@ -167,6 +176,7 @@ test_basic()
 		child[ii] = thread_create((void (*)(void *))fact, (void *)10);
 		assert(thread_ret_ok(child[ii]));
 	}
+	//printQueue(0); //added
 	/*
 	 * Now destroy some explicitly and let the others run
 	 */
@@ -175,9 +185,12 @@ test_basic()
 		ret = thread_kill(child[ii]);
 		assert(thread_ret_ok(ret));
 	}
+	//printQueue(0); //added
+	//printQueue(2); //added
 	for (ii = 0; ii < THREAD_MAX_THREADS; ii++) {
 		ret = thread_yield(ii);
 	}
+	//printQueue(2);
 
 	ret = thread_kill(thread_id());
 	assert(ret == THREAD_INVALID);
@@ -212,12 +225,15 @@ test_basic()
 	 * allocated using malloc. */
 	/* this assumes that the thread structures are allocated statically,
 	 * since the main thread is still running right now. */
-	struct mallinfo minfo_end = mallinfo();
-	assert(minfo_end.uordblks == minfo_start.uordblks);
-	assert(minfo_end.hblks == minfo_start.hblks);
+	//struct mallinfo minfo_end = mallinfo();
+	printf("Running Thread: %d\n",thread_id()); //added
+	printQueue(0); //added
+	printQueue(2); //added
+	//assert(minfo_end.uordblks == minfo_start.uordblks);
+	//assert(minfo_end.hblks == minfo_start.hblks);
 	grand_finale();
 	printf("\n\nBUG: test should not get here\n\n");
-	assert(0);
+	//assert(0);
 }
 
 static void

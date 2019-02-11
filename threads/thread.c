@@ -25,7 +25,9 @@ struct thread {
 	Tid threadID;
 	int state;
 	int yieldFlag;
+	int exitFlag;
 	ucontext_t context;
+	int kernelThreadFlag;
 	void *stackAddress;
 };
 typedef struct thread thread;
@@ -49,6 +51,34 @@ thread *runningThread;
 
 //Helper Functions
 //
+
+void printQueue(int q){
+	int queuePosition = 1;
+	if(q == READY){
+		queueNode *printNode = readyQueue->head;
+		if(printNode == NULL){
+			printf("Ready queue is empty.\n");
+		}
+		while(printNode != NULL){
+			printf("Thread in position %d is %d.\n", queuePosition, printNode->threadData->threadID);
+			printNode = printNode->next;
+			queuePosition++;	
+		}
+	}
+	else if(q == EXIT){
+		queueNode *printNode = exitQueue->head;
+		if(printNode == NULL){
+			printf("Exit queue is empty.\n");
+		}
+		while(printNode != NULL){
+			printf("Thread in position %d is %d.\n", queuePosition, printNode->threadData->threadID);
+			printNode = printNode->next;
+			queuePosition++;
+		}
+	}
+}
+
+
 //Find thread with Tid = TID in the given queue
 int find(int q,Tid TID)
 {
@@ -102,17 +132,21 @@ thread *extract(int q, Tid TID)
 		}
 		else if(extractNode == readyQueue->head){
 			returnThread = extractNode->threadData;
-			readyQueue->head = extractNode->next; 	
+			readyQueue->head = extractNode->next;
+			//printf("Found node to extract at head.\n");	
 		}
 		else if(extractNode->next == NULL){
 			returnThread = extractNode->threadData;
 			prevNode->next = NULL;
+			//printf("Found node to extract at last position.\n");
 		}
 		else{
 			returnThread = extractNode->threadData;
 			prevNode->next = extractNode->next;
+			//printf("Found node to extract in queue\n");
 		}
 		free(extractNode);
+		//printQueue(READY);
 	}
 	else if(q == EXIT){
 		queueNode *extractNode = exitQueue->head;
@@ -179,19 +213,20 @@ void appendQueue(int q, queueNode* appendNode)
 		else{
 			queueNode *current;
 			current = readyQueue->head;
-			while(current->next != NULL){
-				current = current->next;
-			}
-			//printf("In appendQueue, reached end of queue.\n");
-			current->next = appendNode;
+				while(current->next != NULL){
+					current = current->next;
+				}
+				//printf("In appendQueue, reached end of queue.\n");
+				current->next = appendNode;
 		}
 	}
-	else if(q == EXIT){
+	else if(q == EXIT){	
 		if(exitQueue->head ==NULL)
 			exitQueue->head = appendNode;
 		else{
 			queueNode *current;
-			current = readyQueue->head;
+			current = exitQueue->head;
+			
 			while(current->next != NULL){
 				current = current->next;
 			}
@@ -206,18 +241,23 @@ void clearQueue(int q){
 		while(readyQueue->head!=NULL){
 			queueNode *destroyNode = readyQueue->head;
 			readyQueue->head = destroyNode->next;
+			tidArray[destroyNode->threadData->threadID]=AVAILABLE;
+			//free(destroyNode->threadData);
 			free(destroyNode);
 		}
 	}
 	else if(q==EXIT){
-		while(exitQueue->head!=NULL){
-			queueNode *destroyNode = exitQueue->head;
-			exitQueue->head = destroyNode->next;
-			free(destroyNode);
-		}
+		thread *destroyThread = extractFirst(EXIT);
+		
+		while(destroyThread != NULL){
+			//printf("Destorying thread %d.\n", destroyThread->threadID);
+			tidArray[destroyThread->threadID] = AVAILABLE;
+			free(destroyThread->stackAddress);
+			free(destroyThread);
+			destroyThread = extractFirst(EXIT);
+			}
 	}
 }
-
 
 //Cooperative Threads API
 void
@@ -226,7 +266,9 @@ thread_init(void)
 	/* your optional code here */	
 	readyQueue = (threadQueue *)malloc(sizeof(threadQueue));
 	exitQueue = (threadQueue *)malloc(sizeof(threadQueue));
-	printf("Allocated lists for ready and exit queue");
+	readyQueue->head = NULL;
+	exitQueue->head = NULL;
+	//printf("Allocated lists for ready and exit queue");
 	for(int i=0;i<THREAD_MAX_THREADS;i++)
 		tidArray[i]=AVAILABLE;
 	
@@ -235,8 +277,10 @@ thread_init(void)
 	kernelThread->threadID = 0;
 	kernelThread->state = RUNNING;
 	kernelThread->yieldFlag = 0;
+	kernelThread->exitFlag = 0;
+	kernelThread->kernelThreadFlag=1;
        	tidArray[0] = ASSIGNED;	
-	printf("Kernel thread set");
+	//printf("Kernel thread set");
 	
 	//initialize running thread
 	runningThread = kernelThread;	
@@ -269,25 +313,27 @@ thread_create(void (*fn) (void *), void *parg)
 
 	//Have memory for thread, find available thread ID	
 	int i;
-	for(i=1;tidArray[i] == 1;i++){
-		if(i==THREAD_MAX_THREADS)
+	for(i=0;tidArray[i] == ASSIGNED;i++){
+		if(i==THREAD_MAX_THREADS-1)
 			return THREAD_NOMORE;
 	}
 	newThread->threadID = i;
 	tidArray[i]=1;
-	printf("Creating new thread with ID: %d.\n", newThread->threadID);
+	//printf("Creating new thread with ID: %d.\n", newThread->threadID);
 
 	//Initialize temp->context, then update temp context
 	getcontext(&newThread->context);
-	printf("Getting current context for new thread number: %d.\n", newThread->threadID);
+	//printf("Getting current context for new thread number: %d.\n", newThread->threadID);
 	
 	newThread->context.uc_mcontext.gregs[REG_RIP] = (long long int) &thread_stub;
 	newThread->context.uc_mcontext.gregs[REG_RDI] = (long long int) fn;
 	newThread->context.uc_mcontext.gregs[REG_RSI] = (long long int) parg;
-	printf("Updated context for new thread number: %d.\n", newThread->threadID);
+	//printf("Updated context for new thread number: %d.\n", newThread->threadID);
 
 	newThread->state = READY;
 	newThread->yieldFlag = 0;
+	newThread->exitFlag = 0;
+	newThread->kernelThreadFlag=0;
 	
 	void *stackPointer;
 	stackPointer = malloc(THREAD_MIN_STACK);
@@ -295,18 +341,18 @@ thread_create(void (*fn) (void *), void *parg)
 		free(newThread);
 		return THREAD_NOMEMORY;
 	}
-	printf("Allocated memory for stack pointer, threadID: %d.\n", newThread->threadID);
+	//printf("Allocated memory for stack pointer, threadID: %d.\n", newThread->threadID);
 
 	newThread->context.uc_stack.ss_sp = stackPointer;
 	newThread->context.uc_mcontext.gregs[REG_RSP] = (long long int)stackPointer + THREAD_MIN_STACK - 8;
 	newThread->context.uc_stack.ss_size = THREAD_MIN_STACK - 8;
 	newThread->stackAddress = stackPointer;
-	printf("Updated more context for thread number: %d.\n", newThread->threadID);
+	//printf("Updated more context for thread number: %d.\n", newThread->threadID);
 	
 	queueNode* newNode = queueNode_init(newThread);
 	appendQueue(READY, newNode);
 
-	printf("Added thread %d to ready queue.\n", newThread->threadID);
+	//printf("Added thread %d to ready queue.\n", newThread->threadID);
 
 	return newThread->threadID;
 }
@@ -329,29 +375,35 @@ thread_yield(Tid want_tid)
 
 	//Yield to self
 	if(want_tid == THREAD_SELF || (want_tid>=0 && want_tid == runningThread->threadID)){
-		printf("thread_yield yielding to self, tid: %d: \n", runningThread->threadID);
+		//printf("thread_yield yielding to self, tid: %d: \n", runningThread->threadID);
 		clearQueue(EXIT);
 		return runningThread->threadID;
 	}
 	
 	//Yield to another thread
 	Tid ret;
-	queueNode* appendNode = queueNode_init(runningThread);
-	appendQueue(READY, appendNode);
-	//printf("In thread_yield, current running thread(TID %d) stopped and added to readyQueue.\n", runningThread->threadID);
-	getcontext(&appendNode->threadData->context);
-	//printf("Current context stored\n");
+	if(runningThread->exitFlag==0){
+		queueNode* appendNode = queueNode_init(runningThread);
+		appendQueue(READY, appendNode);
+		//printf("In thread_yield, current running thread(TID %d) stopped and added to readyQueue.\n", runningThread->threadID);
+		getcontext(&appendNode->threadData->context);
+		//printf("Current context stored\n");
+	}
+	else if(runningThread->exitFlag == 1){
+	}
+
+	else
+		return THREAD_INVALID;
 
 	if(runningThread->yieldFlag ==0){
 		//First set yieldFlag
 		runningThread->yieldFlag = 1;
 
-		if(want_tid == THREAD_ANY){		
+		if(want_tid == THREAD_ANY){	
 			//If TID value is THREAD_ANY(-1), yield to first thread in readyQueue
 			runningThread = extractFirst(READY);
 			//printf("In thread_yield, yielding to any thread. New running thread: %d\n",runningThread->threadID);
 		}
-
 		else if(want_tid >= 0 && want_tid != runningThread->threadID){
 			//Find wanted_tid in readyQueue 
 			//printf("thread_yield yielding to thread: %d, current running tid: %d: \n", want_tid, runningThread->threadID);
@@ -378,8 +430,8 @@ thread_yield(Tid want_tid)
 	runningThread->yieldFlag = 0;
 	
 	//clear Exit queue to kill exit threads
+	
 	clearQueue(EXIT);
-
 	return ret;
 }
 
@@ -393,6 +445,19 @@ thread_exit()
 		//move current thread to exitQueue
 		queueNode* appendNode = queueNode_init(runningThread);
 		appendQueue(EXIT, appendNode);
+		//Flag to exit at yield below
+		runningThread->exitFlag = 1;
+		
+		thread *destroyThread = extractFirst(EXIT);
+	
+		while(destroyThread != NULL){
+			//printf("Destorying thread %d.\n", destroyThread->threadID);
+			tidArray[destroyThread->threadID] = AVAILABLE;
+			free(destroyThread->stackAddress);
+			free(destroyThread);
+			destroyThread = extractFirst(EXIT);
+		}
+		//printf("Exiting thread: %d.\n", runningThread->threadID);
 		//yield to any thread
 		thread_yield(THREAD_ANY);
 	}
@@ -411,7 +476,13 @@ thread_kill(Tid tid)
 	}
 	
 	//Check passed
-	if(find(READY,tid) == 1){
+	//printQueue(EXIT);
+	//checking if killing yourself
+	
+	if(tid == runningThread->threadID){
+		return THREAD_INVALID;
+	}
+	else if(find(READY,tid) == 1){
 		thread *killThread; //might need to be pointer
 		killThread = extract(READY, tid);
 		queueNode* appendNode = queueNode_init(killThread);
